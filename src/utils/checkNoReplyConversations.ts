@@ -12,6 +12,7 @@ type Conversation = {
   chat_status: string;
   notified_no_reply: boolean;
   notified_out_of_hours: boolean;
+  notified_out_afternoon: boolean;
 };
 
 type Message = {
@@ -21,17 +22,19 @@ type Message = {
   created_at: string;
 };
 
-// ESCENARIO 1: Verificar conversaciones sin respuesta durante horario laboral
+// ESCENARIO 1A: Verificar conversaciones sin respuesta - PRIMER BARRIDO (12:30 PM)
 export const checkNoReplyConversations = async (): Promise<void> => {
   console.log(
-    `🔍 [${getCurrentColombiaTime()}] ESCENARIO 1: Verificando conversaciones sin respuesta en horario laboral...`
+    `🔍 [${getCurrentColombiaTime()}] ESCENARIO 1A: Verificando conversaciones sin respuesta - PRIMER BARRIDO (12:30 PM)...`
   );
 
   try {
     // Consultar conversaciones activas que no han sido notificadas y no están cerradas
     const { data: conversations, error: conversationsError } = await supabase
       .from(TABLE_NAMES.CHAT_HISTORY)
-      .select("id, client_number, chat_status, notified_no_reply")
+      .select(
+        "id, client_number, chat_status, notified_no_reply, notified_out_afternoon"
+      )
       .eq("notified_no_reply", false)
       .neq("chat_status", "closed");
 
@@ -42,7 +45,7 @@ export const checkNoReplyConversations = async (): Promise<void> => {
 
     if (!conversations || conversations.length === 0) {
       console.log(
-        "✅ No hay conversaciones pendientes de notificar (Escenario 1)"
+        "✅ No hay conversaciones pendientes de notificar (Escenario 1A)"
       );
       return;
     }
@@ -56,6 +59,50 @@ export const checkNoReplyConversations = async (): Promise<void> => {
     }
   } catch (error) {
     console.error("❌ Error general en checkNoReplyConversations:", error);
+  }
+};
+
+// ESCENARIO 1B: Verificar conversaciones sin respuesta - SEGUNDO BARRIDO (5:30 PM)
+export const checkNoReplyConversationsAfternoon = async (): Promise<void> => {
+  console.log(
+    `🔍 [${getCurrentColombiaTime()}] ESCENARIO 1B: Verificando conversaciones sin respuesta - SEGUNDO BARRIDO (5:30 PM)...`
+  );
+
+  try {
+    // Consultar conversaciones que ya fueron notificadas en el mediodía pero aún no han recibido notificación de tarde
+    const { data: conversations, error: conversationsError } = await supabase
+      .from(TABLE_NAMES.CHAT_HISTORY)
+      .select(
+        "id, client_number, chat_status, notified_no_reply, notified_out_afternoon"
+      )
+      .eq("notified_no_reply", true)
+      .eq("notified_out_afternoon", false)
+      .neq("chat_status", "closed");
+
+    if (conversationsError) {
+      console.error("❌ Error fetching conversations:", conversationsError);
+      return;
+    }
+
+    if (!conversations || conversations.length === 0) {
+      console.log(
+        "✅ No hay conversaciones pendientes de notificar (Escenario 1B)"
+      );
+      return;
+    }
+
+    console.log(
+      `📋 Encontradas ${conversations.length} conversaciones para segundo barrido`
+    );
+
+    for (const conversation of conversations as Conversation[]) {
+      await processAfternoonConversation(conversation);
+    }
+  } catch (error) {
+    console.error(
+      "❌ Error general en checkNoReplyConversationsAfternoon:",
+      error
+    );
   }
 };
 
@@ -146,7 +193,9 @@ const processInHoursConversation = async (
       );
 
       if (!clientReplied) {
-        console.log(`📧 Enviando recordatorio a ${conversation.client_number}`);
+        console.log(
+          `📧 Enviando primer recordatorio a ${conversation.client_number}`
+        );
         await sendInHoursReminder(conversation.client_number);
         await markAsNotifiedNoReply(conversation.id);
       } else {
@@ -158,6 +207,57 @@ const processInHoursConversation = async (
   } catch (error) {
     console.error(
       `❌ Error procesando conversación ${conversation.id}:`,
+      error
+    );
+  }
+};
+
+// Procesar conversación para escenario 1B (segundo barrido de tarde)
+const processAfternoonConversation = async (
+  conversation: Conversation
+): Promise<void> => {
+  try {
+    // Buscar el último mensaje del asesor en esta conversación
+    const { data: lastAgentMessage, error: messageError } = await supabase
+      .from(TABLE_NAMES.MESSAGES)
+      .select("created_at, sender")
+      .eq("conversation_id", conversation.id)
+      .neq("sender", "client_message")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (messageError || !lastAgentMessage) {
+      console.log(
+        `⚠️ No se encontró último mensaje del asesor para conversación ${conversation.id}`
+      );
+      return;
+    }
+
+    const lastAgentMessageDate = moment(lastAgentMessage.created_at).tz(
+      "America/Bogota"
+    );
+
+    // Verificar si el cliente respondió después del último mensaje del asesor
+    const clientReplied = await hasClientRepliedAfter(
+      conversation.id,
+      lastAgentMessageDate
+    );
+
+    if (!clientReplied) {
+      console.log(
+        `📧 Enviando segundo recordatorio (tarde) a ${conversation.client_number}`
+      );
+      await sendAfternoonReminder(conversation.client_number);
+      await markAsNotifiedAfternoon(conversation.id);
+    } else {
+      console.log(
+        `✅ Cliente ya respondió después del último mensaje del asesor - no necesita notificación de tarde`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `❌ Error procesando conversación de tarde ${conversation.id}:`,
       error
     );
   }
@@ -274,6 +374,35 @@ const sendInHoursReminder = async (phoneNumber: string): Promise<void> => {
   }
 };
 
+// Enviar recordatorio para escenario 1B (segundo barrido de tarde)
+const sendAfternoonReminder = async (phoneNumber: string): Promise<void> => {
+  try {
+    const response = await axios.post(
+      "https://ultim.online/fenix/send-template",
+      {
+        to: phoneNumber,
+        templateId: "TEMPLATE_ID_AFTERNOON", // Reemplaza con el ID del template de tarde
+      }
+    );
+
+    console.log(
+      `✅ Recordatorio de tarde enviado exitosamente:`,
+      response.data
+    );
+  } catch (error: any) {
+    if (error.response) {
+      console.error(
+        `❌ Error enviando recordatorio de tarde:`,
+        error.response.data
+      );
+    } else if (error.request) {
+      console.error(`❌ No response from server:`, error.request);
+    } else {
+      console.error(`❌ Error:`, error.message);
+    }
+  }
+};
+
 // Enviar mensaje de horarios para escenario 2 (fuera de horario laboral)
 const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
   try {
@@ -326,6 +455,34 @@ const markAsNotifiedNoReply = async (conversationId: string): Promise<void> => {
   }
 };
 
+// Marcar conversación como notificada para escenario 1B (tarde)
+const markAsNotifiedAfternoon = async (
+  conversationId: string
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from(TABLE_NAMES.CHAT_HISTORY)
+      .update({ notified_out_afternoon: true })
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error(
+        `❌ Error marcando conversación ${conversationId} como notificada (afternoon):`,
+        error
+      );
+    } else {
+      console.log(
+        `✅ Conversación ${conversationId} marcada como notificada (afternoon)`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `❌ Error general marcando conversación ${conversationId} (afternoon):`,
+      error
+    );
+  }
+};
+
 // Marcar conversación como notificada para escenario 2
 const markAsNotifiedOutOfHours = async (
   conversationId: string
@@ -349,6 +506,44 @@ const markAsNotifiedOutOfHours = async (
   } catch (error) {
     console.error(
       `❌ Error general marcando conversación ${conversationId} (out of hours):`,
+      error
+    );
+  }
+};
+
+// Resetear notificaciones cuando el cliente responda
+// IMPORTANTE: Esta función debe ser llamada desde el webhook o sistema de mensajes
+// cada vez que un cliente envíe un mensaje, para resetear las flags de notificación
+// y permitir que vuelva a recibir notificaciones en el futuro si no responde.
+//
+// Ejemplo de uso:
+// await resetNotificationsOnClientReply(conversationId);
+//
+export const resetNotificationsOnClientReply = async (
+  conversationId: string
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from(TABLE_NAMES.CHAT_HISTORY)
+      .update({
+        notified_no_reply: false,
+        notified_out_afternoon: false,
+      })
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error(
+        `❌ Error reseteando notificaciones para conversación ${conversationId}:`,
+        error
+      );
+    } else {
+      console.log(
+        `✅ Notificaciones reseteadas para conversación ${conversationId} - cliente respondió`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `❌ Error general reseteando notificaciones para conversación ${conversationId}:`,
       error
     );
   }
