@@ -3,10 +3,14 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Supabase
-const supabase = createClient(
-    process.env.SUPABASE_URL as string,
-    process.env.SUPABASE_KEY as string
-);
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_KEY!;
 
-export { supabase };
+// Nombres de tablas configurables
+export const TABLE_NAMES = {
+  CHAT_HISTORY: process.env.TABLE_CHAT_HISTORY || "chat_history",
+  MESSAGES: process.env.TABLE_MESSAGES || "messages",
+  USERS: process.env.TABLE_USERS || "users",
+};
+
+export const supabase = createClient(supabaseUrl, supabaseKey);

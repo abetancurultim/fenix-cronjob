@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, TABLE_NAMES } from "./supabase";
 import { getCurrentColombiaTime } from "./timeHelpers";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -30,7 +30,7 @@ export const checkNoReplyConversations = async (): Promise<void> => {
   try {
     // Consultar conversaciones activas que no han sido notificadas y no están cerradas
     const { data: conversations, error: conversationsError } = await supabase
-      .from("chat_history")
+      .from(TABLE_NAMES.CHAT_HISTORY)
       .select("id, client_number, chat_status, notified_no_reply")
       .eq("notified_no_reply", false)
       .neq("chat_status", "closed");
@@ -68,7 +68,7 @@ export const checkOutOfHoursMessages = async (): Promise<void> => {
   try {
     // Consultar conversaciones que no han recibido notificación de horarios
     const { data: conversations, error: conversationsError } = await supabase
-      .from("chat_history")
+      .from(TABLE_NAMES.CHAT_HISTORY)
       .select("id, client_number, notified_out_of_hours")
       .eq("notified_out_of_hours", false);
 
@@ -103,7 +103,7 @@ const processInHoursConversation = async (
   try {
     // Buscar el último mensaje del asesor en esta conversación (cualquier sender que no sea client_message)
     const { data: lastAgentMessage, error: messageError } = await supabase
-      .from("messages")
+      .from(TABLE_NAMES.MESSAGES)
       .select("created_at, sender")
       .eq("conversation_id", conversation.id)
       .neq("sender", "client_message")
@@ -170,7 +170,7 @@ const processOutOfHoursConversation = async (
   try {
     // Buscar el último mensaje del cliente en esta conversación
     const { data: lastClientMessage, error: messageError } = await supabase
-      .from("messages")
+      .from(TABLE_NAMES.MESSAGES)
       .select("created_at, sender")
       .eq("conversation_id", conversation.id)
       .eq("sender", "client_message")
@@ -209,7 +209,7 @@ const hasClientRepliedAfter = async (
 ): Promise<boolean> => {
   try {
     const { data: clientMessages, error } = await supabase
-      .from("messages")
+      .from(TABLE_NAMES.MESSAGES)
       .select("created_at")
       .eq("conversation_id", conversationId)
       .eq("sender", "client_message")
@@ -258,7 +258,7 @@ const sendInHoursReminder = async (phoneNumber: string): Promise<void> => {
       "https://ultim.online/fenix/send-template",
       {
         to: phoneNumber,
-        templateId: "HXa0168c042624758267465be5f5d1635f", // Template de recordatorio
+        templateId: "HXad825e16b3fef204b7e78ec9d0851950",
       }
     );
 
@@ -281,7 +281,7 @@ const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
       "https://ultim.online/fenix/send-template",
       {
         to: phoneNumber,
-        templateId: "HORARIOS_TEMPLATE_ID", // TODO: Reemplazar con el ID real del template de horarios
+        templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
       }
     );
 
@@ -304,7 +304,7 @@ const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
 const markAsNotifiedNoReply = async (conversationId: string): Promise<void> => {
   try {
     const { error } = await supabase
-      .from("chat_history")
+      .from(TABLE_NAMES.CHAT_HISTORY)
       .update({ notified_no_reply: true })
       .eq("id", conversationId);
 
@@ -332,7 +332,7 @@ const markAsNotifiedOutOfHours = async (
 ): Promise<void> => {
   try {
     const { error } = await supabase
-      .from("chat_history")
+      .from(TABLE_NAMES.CHAT_HISTORY)
       .update({ notified_out_of_hours: true })
       .eq("id", conversationId);
 

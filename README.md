@@ -33,8 +33,20 @@ ALTER TABLE chat_history ADD COLUMN notified_out_of_hours boolean DEFAULT false;
 ### Variables de Entorno
 
 ```env
+# Configuración de Supabase
 SUPABASE_URL=tu_supabase_url
 SUPABASE_KEY=tu_supabase_key
+
+# Nombres de tablas (opcional - por defecto usa nombres de producción)
+# Para producción:
+TABLE_CHAT_HISTORY=chat_history
+TABLE_MESSAGES=messages
+TABLE_USERS=users
+
+# Para testing:
+# TABLE_CHAT_HISTORY=chat_history_test
+# TABLE_MESSAGES=messages_test
+# TABLE_USERS=users_test
 ```
 
 ### Estructura de Tablas Esperada
@@ -71,8 +83,12 @@ npm install
 ### 2. Configurar variables de entorno
 
 ```bash
+# Crear archivo .env basado en el ejemplo
 cp .env.example .env
+
 # Editar .env con tus credenciales
+# Para producción, las variables de tabla son opcionales (usa defaults)
+# Para testing, descomenta y ajusta los nombres de tabla
 ```
 
 ### 3. Verificar configuración
@@ -116,6 +132,17 @@ pm2 stop fenix-cronjob
 
 ## 🧪 Testing y Desarrollo
 
+### Configuración de Testing
+
+Para usar tablas de testing, configura tu `.env`:
+
+```env
+# Configuración para testing
+TABLE_CHAT_HISTORY=chat_history_test
+TABLE_MESSAGES=messages_test
+TABLE_USERS=users_test
+```
+
 ### Pruebas ESCENARIO 1 (cada minuto)
 
 En `src/index.ts`, descomenta:
@@ -134,6 +161,19 @@ En `src/index.ts`, descomenta:
 schedule.scheduleJob("*/30 * * * * *", async () => {
   await executeOutOfHoursJob("Test ESCENARIO 2 (cada 30 segundos)");
 });
+```
+
+### Cambio entre Producción y Testing
+
+```bash
+# Para producción (usar defaults)
+# Comentar o eliminar variables TABLE_* del .env
+
+# Para testing
+# Descomentar y ajustar variables TABLE_* en .env
+
+# Reiniciar aplicación después de cambios
+npm run dev
 ```
 
 ## 📁 Estructura del Proyecto

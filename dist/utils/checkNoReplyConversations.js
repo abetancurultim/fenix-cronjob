@@ -25,7 +25,7 @@ const checkNoReplyConversations = () => __awaiter(void 0, void 0, void 0, functi
     try {
         // Consultar conversaciones activas que no han sido notificadas y no están cerradas
         const { data: conversations, error: conversationsError } = yield supabase_1.supabase
-            .from("chat_history")
+            .from(supabase_1.TABLE_NAMES.CHAT_HISTORY)
             .select("id, client_number, chat_status, notified_no_reply")
             .eq("notified_no_reply", false)
             .neq("chat_status", "closed");
@@ -53,7 +53,7 @@ const checkOutOfHoursMessages = () => __awaiter(void 0, void 0, void 0, function
     try {
         // Consultar conversaciones que no han recibido notificación de horarios
         const { data: conversations, error: conversationsError } = yield supabase_1.supabase
-            .from("chat_history")
+            .from(supabase_1.TABLE_NAMES.CHAT_HISTORY)
             .select("id, client_number, notified_out_of_hours")
             .eq("notified_out_of_hours", false);
         if (conversationsError) {
@@ -79,7 +79,7 @@ const processInHoursConversation = (conversation) => __awaiter(void 0, void 0, v
     try {
         // Buscar el último mensaje del asesor en esta conversación (cualquier sender que no sea client_message)
         const { data: lastAgentMessage, error: messageError } = yield supabase_1.supabase
-            .from("messages")
+            .from(supabase_1.TABLE_NAMES.MESSAGES)
             .select("created_at, sender")
             .eq("conversation_id", conversation.id)
             .neq("sender", "client_message")
@@ -122,7 +122,7 @@ const processOutOfHoursConversation = (conversation) => __awaiter(void 0, void 0
     try {
         // Buscar el último mensaje del cliente en esta conversación
         const { data: lastClientMessage, error: messageError } = yield supabase_1.supabase
-            .from("messages")
+            .from(supabase_1.TABLE_NAMES.MESSAGES)
             .select("created_at, sender")
             .eq("conversation_id", conversation.id)
             .eq("sender", "client_message")
@@ -148,7 +148,7 @@ const processOutOfHoursConversation = (conversation) => __awaiter(void 0, void 0
 const hasClientRepliedAfter = (conversationId, afterDate) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { data: clientMessages, error } = yield supabase_1.supabase
-            .from("messages")
+            .from(supabase_1.TABLE_NAMES.MESSAGES)
             .select("created_at")
             .eq("conversation_id", conversationId)
             .eq("sender", "client_message")
@@ -188,7 +188,7 @@ const sendInHoursReminder = (phoneNumber) => __awaiter(void 0, void 0, void 0, f
     try {
         const response = yield axios_1.default.post("https://ultim.online/fenix/send-template", {
             to: phoneNumber,
-            templateId: "HXa0168c042624758267465be5f5d1635f", // Template de recordatorio
+            templateId: "HXad825e16b3fef204b7e78ec9d0851950",
         });
         console.log(`✅ Recordatorio enviado exitosamente:`, response.data);
     }
@@ -209,7 +209,7 @@ const sendOutOfHoursMessage = (phoneNumber) => __awaiter(void 0, void 0, void 0,
     try {
         const response = yield axios_1.default.post("https://ultim.online/fenix/send-template", {
             to: phoneNumber,
-            templateId: "HORARIOS_TEMPLATE_ID", // TODO: Reemplazar con el ID real del template de horarios
+            templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
         });
         console.log(`✅ Mensaje de horarios enviado exitosamente:`, response.data);
     }
@@ -229,7 +229,7 @@ const sendOutOfHoursMessage = (phoneNumber) => __awaiter(void 0, void 0, void 0,
 const markAsNotifiedNoReply = (conversationId) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { error } = yield supabase_1.supabase
-            .from("chat_history")
+            .from(supabase_1.TABLE_NAMES.CHAT_HISTORY)
             .update({ notified_no_reply: true })
             .eq("id", conversationId);
         if (error) {
@@ -247,7 +247,7 @@ const markAsNotifiedNoReply = (conversationId) => __awaiter(void 0, void 0, void
 const markAsNotifiedOutOfHours = (conversationId) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { error } = yield supabase_1.supabase
-            .from("chat_history")
+            .from(supabase_1.TABLE_NAMES.CHAT_HISTORY)
             .update({ notified_out_of_hours: true })
             .eq("id", conversationId);
         if (error) {
