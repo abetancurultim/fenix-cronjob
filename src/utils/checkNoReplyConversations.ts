@@ -75,7 +75,6 @@ export const checkNoReplyConversationsAfternoon = async (): Promise<void> => {
       .select(
         "id, client_number, chat_status, notified_no_reply, notified_out_afternoon"
       )
-      .eq("notified_no_reply", true)
       .eq("notified_out_afternoon", false)
       .neq("chat_status", "closed");
 

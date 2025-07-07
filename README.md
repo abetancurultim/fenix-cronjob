@@ -1,5 +1,99 @@
 # 📧 Fenix Cronjob - Sistema de Notificaciones WhatsApp
 
+## 📝 Documentación General del Cronjob
+
+### 🎯 Descripción General
+
+El **Fenix Cronjob** es un sistema automatizado de notificaciones WhatsApp que gestiona la comunicación con clientes a través de **tres escenarios principales**, ejecutándose en horarios específicos para mantener activas las ventanas de contexto de WhatsApp y mejorar la experiencia del cliente.
+
+---
+
+### 🏗️ Arquitectura del Sistema
+
+- **Scheduler Principal** (`src/index.ts`): Programa y ejecuta los cron jobs, valida horarios laborales antes de ejecutar y maneja logs centralizados.
+- **Motor de Lógica** (`src/utils/checkNoReplyConversations.ts`): Contiene toda la lógica de negocio, gestiona los tres escenarios de notificación e interactúa con Supabase y la API de WhatsApp.
+- **Utilidades de Tiempo** (`src/utils/timeHelpers.ts`): Validación de horarios laborales, manejo de zona horaria de Colombia y funciones de formato de tiempo.
+- **Configuración de Base de Datos** (`src/utils/supabase.ts`): Conexión a Supabase, configuración de tablas y manejo de variables de entorno.
+
+---
+
+### 📅 Escenarios de Notificación
+
+#### ESCENARIO 1A: Primer Barrido - 12:30 PM
+
+- **Objetivo**: Notificar clientes que no han respondido después de 3+ horas.
+- **Cron**: `"30 12 * * *"` (12:30 PM todos los días)
+- **Condiciones**: Último mensaje del asesor en horario laboral (8 AM - 6 PM), cliente no ha respondido después del mensaje del asesor, `notified_no_reply = false`, `chat_status != "closed"`.
+- **Acción**: Enviar template `HXad825e16b3fef204b7e78ec9d0851950` y marcar `notified_no_reply = true`.
+
+#### ESCENARIO 1B: Segundo Barrido - 5:30 PM
+
+- **Objetivo**: Notificar clientes que ya recibieron el primer recordatorio.
+- **Cron**: `"30 17 * * *"` (5:30 PM todos los días)
+- **Condiciones**: `notified_no_reply = true`, `notified_out_afternoon = false`, `chat_status != "closed"`.
+- **Acción**: Enviar template de tarde (ID pendiente) y marcar `notified_out_afternoon = true`.
+
+#### ESCENARIO 2: Mensajes Fuera de Horario
+
+- **Objetivo**: Notificar clientes que escriben fuera del horario laboral.
+- **Cron**: `"0 8-18/2 * * *"` (8:00, 10:00, 12:00, 14:00, 16:00, 18:00)
+- **Condiciones**: `notified_out_of_hours = false`, conversación activa.
+- **Acción**: Enviar template `HX83c6652c93ecc93e2dd53c120fd6a0ef` y marcar `notified_out_of_hours = true`.
+
+---
+
+### 🕐 Horarios Laborales
+
+- **Zona Horaria**: America/Bogota (Colombia)
+- **Lunes a Viernes**: 8:00 AM - 6:00 PM
+- **Sábados**: 8:00 AM - 1:00 PM
+- **Domingos**: Cerrado (no se ejecutan jobs)
+- Validación automática mediante la función `shouldRunJobNow()`.
+
+---
+
+### 🗄️ Estructura de Base de Datos
+
+- **Tabla `chat_history`**: Incluye columnas booleanas para control de notificaciones (`notified_no_reply`, `notified_out_of_hours`, `notified_out_afternoon`).
+- **Tabla `messages`**: Registra mensajes, identificando si el remitente es cliente o asesor.
+
+---
+
+### 🔄 Flujo de Funcionamiento
+
+1. **Verificación**: Consulta y filtra conversaciones según el escenario y estado de las flags.
+2. **Procesamiento**: Analiza mensajes, horarios y condiciones específicas.
+3. **Notificación**: Envía el mensaje correspondiente por WhatsApp.
+4. **Marcado**: Actualiza las flags en la base de datos para evitar duplicados.
+5. **Reset**: Cuando el cliente responde, se resetean las flags para permitir futuras notificaciones.
+
+---
+
+### 🔧 Funciones Principales
+
+- `checkNoReplyConversations()` - Primer barrido (12:30 PM)
+- `checkNoReplyConversationsAfternoon()` - Segundo barrido (5:30 PM)
+- `checkOutOfHoursMessages()` - Mensajes fuera de horario
+- `resetNotificationsOnClientReply()` - Resetea flags cuando el cliente responde
+
+---
+
+### 📊 Sistema de Logs
+
+- Logs detallados con emojis para fácil seguimiento.
+- Registra inicio, éxito, errores y validaciones de horario.
+
+---
+
+### 🚀 Integración y Consideraciones
+
+- Requiere conexión a Supabase y configuración de variables de entorno.
+- Los jobs solo se ejecutan en horario laboral válido.
+- Es fundamental integrar la función de reset en el webhook de mensajes entrantes del backend.
+- El sistema es extensible y fácilmente configurable para nuevos escenarios.
+
+---
+
 ## 🎯 Descripción
 
 Sistema de cron jobs automatizado con **dos escenarios** para gestionar notificaciones de WhatsApp:
