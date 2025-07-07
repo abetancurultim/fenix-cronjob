@@ -380,7 +380,7 @@ const sendAfternoonReminder = async (phoneNumber: string): Promise<void> => {
       "https://ultim.online/fenix/send-template",
       {
         to: phoneNumber,
-        templateId: "TEMPLATE_ID_AFTERNOON", // Reemplaza con el ID del template de tarde
+        templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
       }
     );
 
@@ -409,7 +409,7 @@ const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
       "https://ultim.online/fenix/send-template",
       {
         to: phoneNumber,
-        templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
+        templateId: "HX18d65bb819869a2b2b79dbe797aaa716",
       }
     );
 
