@@ -55,7 +55,6 @@ const checkNoReplyConversationsAfternoon = () => __awaiter(void 0, void 0, void 
         const { data: conversations, error: conversationsError } = yield supabase_1.supabase
             .from(supabase_1.TABLE_NAMES.CHAT_HISTORY)
             .select("id, client_number, chat_status, notified_no_reply, notified_out_afternoon")
-            .eq("notified_no_reply", true)
             .eq("notified_out_afternoon", false)
             .neq("chat_status", "closed");
         if (conversationsError) {
@@ -247,7 +246,9 @@ const isWithinBusinessHours = (date) => {
 // Enviar recordatorio para escenario 1 (sin respuesta en horario laboral)
 const sendInHoursReminder = (phoneNumber) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield axios_1.default.post("https://ultim.online/fenix/send-template", {
+        const templateUrl = "https://ultim.online/fenix/send-template";
+        const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+        const response = yield axios_1.default.post(templateUrl, {
             to: phoneNumber,
             templateId: "HXad825e16b3fef204b7e78ec9d0851950",
         });
@@ -268,9 +269,11 @@ const sendInHoursReminder = (phoneNumber) => __awaiter(void 0, void 0, void 0, f
 // Enviar recordatorio para escenario 1B (segundo barrido de tarde)
 const sendAfternoonReminder = (phoneNumber) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield axios_1.default.post("https://ultim.online/fenix/send-template", {
+        const templateUrl = "https://ultim.online/fenix/send-template";
+        const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+        const response = yield axios_1.default.post(templateUrl, {
             to: phoneNumber,
-            templateId: "TEMPLATE_ID_AFTERNOON", // Reemplaza con el ID del template de tarde
+            templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
         });
         console.log(`✅ Recordatorio de tarde enviado exitosamente:`, response.data);
     }
@@ -289,9 +292,11 @@ const sendAfternoonReminder = (phoneNumber) => __awaiter(void 0, void 0, void 0,
 // Enviar mensaje de horarios para escenario 2 (fuera de horario laboral)
 const sendOutOfHoursMessage = (phoneNumber) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const response = yield axios_1.default.post("https://ultim.online/fenix/send-template", {
+        const templateUrl = "https://ultim.online/fenix/send-template";
+        const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+        const response = yield axios_1.default.post(templateUrl, {
             to: phoneNumber,
-            templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
+            templateId: "HX18d65bb819869a2b2b79dbe797aaa716",
         });
         console.log(`✅ Mensaje de horarios enviado exitosamente:`, response.data);
     }

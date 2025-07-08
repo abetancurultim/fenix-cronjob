@@ -353,8 +353,11 @@ const isWithinBusinessHours = (date: moment.Moment): boolean => {
 // Enviar recordatorio para escenario 1 (sin respuesta en horario laboral)
 const sendInHoursReminder = async (phoneNumber: string): Promise<void> => {
   try {
+    const templateUrl = "https://ultim.online/fenix/send-template";
+    const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+
     const response = await axios.post(
-      "https://ultim.online/fenix/send-template",
+      templateUrl,
       {
         to: phoneNumber,
         templateId: "HXad825e16b3fef204b7e78ec9d0851950",
@@ -376,8 +379,11 @@ const sendInHoursReminder = async (phoneNumber: string): Promise<void> => {
 // Enviar recordatorio para escenario 1B (segundo barrido de tarde)
 const sendAfternoonReminder = async (phoneNumber: string): Promise<void> => {
   try {
+    const templateUrl = "https://ultim.online/fenix/send-template";
+    const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+
     const response = await axios.post(
-      "https://ultim.online/fenix/send-template",
+      templateUrl,
       {
         to: phoneNumber,
         templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
@@ -405,8 +411,11 @@ const sendAfternoonReminder = async (phoneNumber: string): Promise<void> => {
 // Enviar mensaje de horarios para escenario 2 (fuera de horario laboral)
 const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
   try {
+    const templateUrl = "https://ultim.online/fenix/send-template";
+    const testTemplateUrl = "http://localhost:3024/fenix/send-template";
+
     const response = await axios.post(
-      "https://ultim.online/fenix/send-template",
+      templateUrl,
       {
         to: phoneNumber,
         templateId: "HX18d65bb819869a2b2b79dbe797aaa716",

@@ -85,17 +85,17 @@ schedule.scheduleJob("0 8-18/2 * * *", async () => {
   );
 });
 
-//! Ejecutar el cronjob cada minuto (para pruebas ESCENARIO 1A) - Descomenta la siguiente línea para probar
+// ! Ejecutar el cronjob cada minuto (para pruebas ESCENARIO 1A) - Descomenta la siguiente línea para probar
 // schedule.scheduleJob("* * * * *", async () => {
 //   await executeInHoursJobWithValidation("Test ESCENARIO 1A (cada minuto)");
 // });
 
-//! Ejecutar el cronjob cada 2 minutos (para pruebas ESCENARIO 1B) - Descomenta la siguiente línea para probar
+// ! Ejecutar el cronjob cada 2 minutos (para pruebas ESCENARIO 1B) - Descomenta la siguiente línea para probar
 // schedule.scheduleJob("*/2 * * * *", async () => {
 //   await executeAfternoonJobWithValidation("Test ESCENARIO 1B (cada 2 minutos)");
 // });
 
-//! Ejecutar el cronjob cada 30 segundos (para pruebas ESCENARIO 2) - Descomenta la siguiente línea para probar
+// ! Ejecutar el cronjob cada 30 segundos (para pruebas ESCENARIO 2) - Descomenta la siguiente línea para probar
 // schedule.scheduleJob("*/30 * * * * *", async () => {
 //   await executeOutOfHoursJob("Test ESCENARIO 2 (cada 30 segundos)");
 // });
