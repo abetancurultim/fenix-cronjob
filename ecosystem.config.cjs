@@ -2,14 +2,13 @@ module.exports = {
     apps: [
       {
         name: "fenix-cronjob",
-        script: "dist/index.js", // Asegúrate de que apunte al archivo compilado.
-        instances: 1, // Cambia a "max" si quieres usar todos los núcleos de CPU.
+        script: "dist/index.js", 
+        instances: 1,
         autorestart: true,
-        watch: false, // Desactiva en producción.
+        watch: false, 
         max_memory_restart: "500M",
         env: {
             NODE_ENV: "production",
-            PORT: 3025,
         },
       },
     ],
