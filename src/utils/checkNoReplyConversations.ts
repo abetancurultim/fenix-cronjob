@@ -105,10 +105,10 @@ export const checkNoReplyConversationsAfternoon = async (): Promise<void> => {
   }
 };
 
-// ESCENARIO 2: Verificar mensajes enviados fuera de horario laboral
+// ESCENARIO 2: Verificar mensajes enviados en fin de semana (Sáb 1PM-Dom 6PM)
 export const checkOutOfHoursMessages = async (): Promise<void> => {
   console.log(
-    `🌙 [${getCurrentColombiaTime()}] ESCENARIO 2: Verificando mensajes fuera de horario laboral...`
+    `🌙 [${getCurrentColombiaTime()}] ESCENARIO 2: Verificando mensajes de fin de semana (Sáb 1PM-Dom 6PM)...`
   );
 
   try {
@@ -262,7 +262,7 @@ const processAfternoonConversation = async (
   }
 };
 
-// Procesar conversación para escenario 2 (fuera de horario laboral)
+// Procesar conversación para escenario 2 (mensajes de fin de semana)
 const processOutOfHoursConversation = async (
   conversation: Conversation
 ): Promise<void> => {
@@ -285,13 +285,24 @@ const processOutOfHoursConversation = async (
       "America/Bogota"
     );
 
-    // Verificar que el mensaje del cliente fue enviado fuera de horario laboral
-    if (!isWithinBusinessHours(lastClientMessageDate)) {
+    // Verificar que el mensaje del cliente fue enviado en el rango específico:
+    // Sábados después de 1PM hasta Domingo 6PM
+    if (isWeekendOutOfHoursMessage(lastClientMessageDate)) {
       console.log(
-        `🌙 Enviando mensaje de horarios a ${conversation.client_number}`
+        `🌙 Enviando mensaje de horarios a ${
+          conversation.client_number
+        } (mensaje del ${lastClientMessageDate.format(
+          "dddd DD/MM/YYYY HH:mm"
+        )})`
       );
       await sendOutOfHoursMessage(conversation.client_number);
       await markAsNotifiedOutOfHours(conversation.id);
+    } else {
+      console.log(
+        `⏰ Mensaje no está en rango fin de semana para conversación ${
+          conversation.id
+        } (${lastClientMessageDate.format("dddd DD/MM/YYYY HH:mm")})`
+      );
     }
   } catch (error) {
     console.error(
@@ -350,19 +361,36 @@ const isWithinBusinessHours = (date: moment.Moment): boolean => {
   return false;
 };
 
+// Verificar si un mensaje fue enviado en el rango específico del ESCENARIO 2:
+// Sábados después de 1PM hasta Domingos 6PM
+const isWeekendOutOfHoursMessage = (date: moment.Moment): boolean => {
+  const dayOfWeek = date.day(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+  const hour = date.hour();
+
+  // Sábados después de 1PM (13:00 en adelante)
+  if (dayOfWeek === 6) {
+    return hour >= 13;
+  }
+
+  // Domingos hasta las 6PM (antes de 18:00)
+  if (dayOfWeek === 0) {
+    return hour < 18;
+  }
+
+  // Cualquier otro día/hora no aplica
+  return false;
+};
+
 // Enviar recordatorio para escenario 1 (sin respuesta en horario laboral)
 const sendInHoursReminder = async (phoneNumber: string): Promise<void> => {
   try {
     const templateUrl = "https://ultim.online/fenix/send-template";
     const testTemplateUrl = "http://localhost:3024/fenix/send-template";
 
-    const response = await axios.post(
-      templateUrl,
-      {
-        to: phoneNumber,
-        templateId: "HXad825e16b3fef204b7e78ec9d0851950",
-      }
-    );
+    const response = await axios.post(templateUrl, {
+      to: phoneNumber,
+      templateId: "HXad825e16b3fef204b7e78ec9d0851950",
+    });
 
     console.log(`✅ Recordatorio enviado exitosamente:`, response.data);
   } catch (error: any) {
@@ -382,13 +410,10 @@ const sendAfternoonReminder = async (phoneNumber: string): Promise<void> => {
     const templateUrl = "https://ultim.online/fenix/send-template";
     const testTemplateUrl = "http://localhost:3024/fenix/send-template";
 
-    const response = await axios.post(
-      templateUrl,
-      {
-        to: phoneNumber,
-        templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
-      }
-    );
+    const response = await axios.post(templateUrl, {
+      to: phoneNumber,
+      templateId: "HX83c6652c93ecc93e2dd53c120fd6a0ef",
+    });
 
     console.log(
       `✅ Recordatorio de tarde enviado exitosamente:`,
@@ -414,13 +439,10 @@ const sendOutOfHoursMessage = async (phoneNumber: string): Promise<void> => {
     const templateUrl = "https://ultim.online/fenix/send-template";
     const testTemplateUrl = "http://localhost:3024/fenix/send-template";
 
-    const response = await axios.post(
-      templateUrl,
-      {
-        to: phoneNumber,
-        templateId: "HX18d65bb819869a2b2b79dbe797aaa716",
-      }
-    );
+    const response = await axios.post(templateUrl, {
+      to: phoneNumber,
+      templateId: "HX18d65bb819869a2b2b79dbe797aaa716",
+    });
 
     console.log(`✅ Mensaje de horarios enviado exitosamente:`, response.data);
   } catch (error: any) {

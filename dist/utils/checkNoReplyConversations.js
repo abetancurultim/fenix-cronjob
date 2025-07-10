@@ -75,9 +75,9 @@ const checkNoReplyConversationsAfternoon = () => __awaiter(void 0, void 0, void 
     }
 });
 exports.checkNoReplyConversationsAfternoon = checkNoReplyConversationsAfternoon;
-// ESCENARIO 2: Verificar mensajes enviados fuera de horario laboral
+// ESCENARIO 2: Verificar mensajes enviados en fin de semana (Sáb 1PM-Dom 6PM)
 const checkOutOfHoursMessages = () => __awaiter(void 0, void 0, void 0, function* () {
-    console.log(`🌙 [${(0, timeHelpers_1.getCurrentColombiaTime)()}] ESCENARIO 2: Verificando mensajes fuera de horario laboral...`);
+    console.log(`🌙 [${(0, timeHelpers_1.getCurrentColombiaTime)()}] ESCENARIO 2: Verificando mensajes de fin de semana (Sáb 1PM-Dom 6PM)...`);
     try {
         // Consultar conversaciones que no han recibido notificación de horarios
         const { data: conversations, error: conversationsError } = yield supabase_1.supabase
@@ -177,7 +177,7 @@ const processAfternoonConversation = (conversation) => __awaiter(void 0, void 0,
         console.error(`❌ Error procesando conversación de tarde ${conversation.id}:`, error);
     }
 });
-// Procesar conversación para escenario 2 (fuera de horario laboral)
+// Procesar conversación para escenario 2 (mensajes de fin de semana)
 const processOutOfHoursConversation = (conversation) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Buscar el último mensaje del cliente en esta conversación
@@ -193,11 +193,15 @@ const processOutOfHoursConversation = (conversation) => __awaiter(void 0, void 0
             return;
         }
         const lastClientMessageDate = (0, moment_timezone_1.default)(lastClientMessage.created_at).tz("America/Bogota");
-        // Verificar que el mensaje del cliente fue enviado fuera de horario laboral
-        if (!isWithinBusinessHours(lastClientMessageDate)) {
-            console.log(`🌙 Enviando mensaje de horarios a ${conversation.client_number}`);
+        // Verificar que el mensaje del cliente fue enviado en el rango específico:
+        // Sábados después de 1PM hasta Domingo 6PM
+        if (isWeekendOutOfHoursMessage(lastClientMessageDate)) {
+            console.log(`🌙 Enviando mensaje de horarios a ${conversation.client_number} (mensaje del ${lastClientMessageDate.format("dddd DD/MM/YYYY HH:mm")})`);
             yield sendOutOfHoursMessage(conversation.client_number);
             yield markAsNotifiedOutOfHours(conversation.id);
+        }
+        else {
+            console.log(`⏰ Mensaje no está en rango fin de semana para conversación ${conversation.id} (${lastClientMessageDate.format("dddd DD/MM/YYYY HH:mm")})`);
         }
     }
     catch (error) {
@@ -241,6 +245,22 @@ const isWithinBusinessHours = (date) => {
     if (dayOfWeek === 6) {
         return hour >= 8 && hour < 13;
     }
+    return false;
+};
+// Verificar si un mensaje fue enviado en el rango específico del ESCENARIO 2:
+// Sábados después de 1PM hasta Domingos 6PM
+const isWeekendOutOfHoursMessage = (date) => {
+    const dayOfWeek = date.day(); // 0 = domingo, 1 = lunes, ..., 6 = sábado
+    const hour = date.hour();
+    // Sábados después de 1PM (13:00 en adelante)
+    if (dayOfWeek === 6) {
+        return hour >= 13;
+    }
+    // Domingos hasta las 6PM (antes de 18:00)
+    if (dayOfWeek === 0) {
+        return hour < 18;
+    }
+    // Cualquier otro día/hora no aplica
     return false;
 };
 // Enviar recordatorio para escenario 1 (sin respuesta en horario laboral)
