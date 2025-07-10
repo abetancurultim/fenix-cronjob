@@ -75,6 +75,7 @@ const executeAfternoonJobWithValidation = (jobName) => __awaiter(void 0, void 0,
     }
 });
 // Función para ejecutar el job de mensajes fuera de horario (ESCENARIO 2)
+// NOTA: No validamos horario laboral aquí porque por diseño se ejecuta fuera del horario
 const executeOutOfHoursJob = (jobName) => __awaiter(void 0, void 0, void 0, function* () {
     console.log(`\n🌙 [${(0, timeHelpers_1.getCurrentColombiaTime)()}] Iniciando ${jobName}...`);
     try {
@@ -96,15 +97,31 @@ node_schedule_1.default.scheduleJob(`${job1Time.minute} ${job1Time.hour} * * *`,
 node_schedule_1.default.scheduleJob(`${job2Time.minute} ${job2Time.hour} * * *`, () => __awaiter(void 0, void 0, void 0, function* () {
     yield executeAfternoonJobWithValidation("ESCENARIO 1B: Job de segundo barrido (5:30 PM Colombia)");
 }));
-// ESCENARIO 2: Job de mensajes fuera de horario - cada 2 horas SOLO en horario laboral
-// Para este job, necesitamos calcular todas las horas de 8AM a 6PM Colombia en hora del servidor
+// ESCENARIO 2: Job de mensajes fuera de horario
+// REGLAS ESPECÍFICAS:
+// - Sábados: Solo de 2PM a 6PM (cada 2 horas)
+// - Domingos: Solo de 8AM a 6PM (cada 2 horas)
+// - Lunes a Viernes: NUNCA se ejecuta
 const createOutOfHoursJobs = () => {
-    const colombiaHours = [8, 10, 12, 14, 16, 18];
-    colombiaHours.forEach((hour) => {
-        const serverTime = getServerTimeForColombiaTime(hour, 0);
-        node_schedule_1.default.scheduleJob(`0 ${serverTime.hour} * * *`, () => __awaiter(void 0, void 0, void 0, function* () {
-            yield executeOutOfHoursJob(`ESCENARIO 2: Job de mensajes fuera de horario (${hour}:00 Colombia = ${serverTime.hour}:00 Servidor)`);
+    const outOfHoursSchedules = [
+        // Sábados: 2PM, 4PM, 6PM (después de 1PM)
+        { colombiaHour: 14, description: "2PM Colombia (sábado)", day: 6 },
+        { colombiaHour: 16, description: "4PM Colombia (sábado)", day: 6 },
+        { colombiaHour: 18, description: "6PM Colombia (sábado)", day: 6 },
+        // Domingos: 8AM, 10AM, 12PM, 2PM, 4PM (8AM a 6PM cada 2 horas)
+        { colombiaHour: 8, description: "8AM Colombia (domingo)", day: 0 },
+        { colombiaHour: 10, description: "10AM Colombia (domingo)", day: 0 },
+        { colombiaHour: 12, description: "12PM Colombia (domingo)", day: 0 },
+        { colombiaHour: 14, description: "2PM Colombia (domingo)", day: 0 },
+        { colombiaHour: 16, description: "4PM Colombia (domingo)", day: 0 },
+    ];
+    outOfHoursSchedules.forEach((scheduleConfig) => {
+        const serverTime = getServerTimeForColombiaTime(scheduleConfig.colombiaHour, 0);
+        // Programar para el día específico (0=domingo, 6=sábado)
+        node_schedule_1.default.scheduleJob(`0 ${serverTime.hour} * * ${scheduleConfig.day}`, () => __awaiter(void 0, void 0, void 0, function* () {
+            yield executeOutOfHoursJob(`ESCENARIO 2: Job de mensajes fuera de horario (${scheduleConfig.description} = ${serverTime.hour}:00 Servidor)`);
         }));
+        console.log(`🌙 ESCENARIO 2 programado: ${scheduleConfig.description} = ${serverTime.hour}:00 servidor`);
     });
 };
 createOutOfHoursJobs();
@@ -123,7 +140,7 @@ createOutOfHoursJobs();
 console.log("🚀 Sistema de notificaciones iniciado con tres escenarios:");
 console.log(`📅 ESCENARIO 1A: Primer barrido - 12:30 PM Colombia (${job1Time.hour}:${job1Time.minute.toString().padStart(2, "0")} servidor)`);
 console.log(`📅 ESCENARIO 1B: Segundo barrido - 5:30 PM Colombia (${job2Time.hour}:${job2Time.minute.toString().padStart(2, "0")} servidor)`);
-console.log("🌙 ESCENARIO 2: Mensajes fuera de horario - cada 2 horas de 8AM a 6PM hora Colombia");
+console.log("🌙 ESCENARIO 2: Mensajes fuera de horario - sábados 1PM-6PM y domingos 8AM-6PM");
 console.log("⏰ Horario laboral: Lun-Vie 8AM-6PM, Sáb 8AM-1PM, Dom cerrado");
 console.log("❌ Excluye conversaciones con chat_status = 'closed'");
 console.log(`🕐 Hora actual en Colombia: ${(0, timeHelpers_1.getCurrentColombiaTime)()}`);

@@ -84,6 +84,7 @@ const executeAfternoonJobWithValidation = async (
 };
 
 // Función para ejecutar el job de mensajes fuera de horario (ESCENARIO 2)
+// NOTA: No validamos horario laboral aquí porque por diseño se ejecuta fuera del horario
 const executeOutOfHoursJob = async (jobName: string): Promise<void> => {
   console.log(`\n🌙 [${getCurrentColombiaTime()}] Iniciando ${jobName}...`);
 
@@ -112,18 +113,45 @@ schedule.scheduleJob(`${job2Time.minute} ${job2Time.hour} * * *`, async () => {
   );
 });
 
-// ESCENARIO 2: Job de mensajes fuera de horario - cada 2 horas SOLO en horario laboral
-// Para este job, necesitamos calcular todas las horas de 8AM a 6PM Colombia en hora del servidor
+// ESCENARIO 2: Job de mensajes fuera de horario
+// REGLAS ESPECÍFICAS:
+// - Sábados: Solo de 2PM a 6PM (cada 2 horas)
+// - Domingos: Solo de 8AM a 6PM (cada 2 horas)
+// - Lunes a Viernes: NUNCA se ejecuta
 const createOutOfHoursJobs = () => {
-  const colombiaHours = [8, 10, 12, 14, 16, 18];
+  const outOfHoursSchedules = [
+    // Sábados: 2PM, 4PM, 6PM (después de 1PM)
+    { colombiaHour: 14, description: "2PM Colombia (sábado)", day: 6 },
+    { colombiaHour: 16, description: "4PM Colombia (sábado)", day: 6 },
+    { colombiaHour: 18, description: "6PM Colombia (sábado)", day: 6 },
 
-  colombiaHours.forEach((hour) => {
-    const serverTime = getServerTimeForColombiaTime(hour, 0);
-    schedule.scheduleJob(`0 ${serverTime.hour} * * *`, async () => {
-      await executeOutOfHoursJob(
-        `ESCENARIO 2: Job de mensajes fuera de horario (${hour}:00 Colombia = ${serverTime.hour}:00 Servidor)`
-      );
-    });
+    // Domingos: 8AM, 10AM, 12PM, 2PM, 4PM (8AM a 6PM cada 2 horas)
+    { colombiaHour: 8, description: "8AM Colombia (domingo)", day: 0 },
+    { colombiaHour: 10, description: "10AM Colombia (domingo)", day: 0 },
+    { colombiaHour: 12, description: "12PM Colombia (domingo)", day: 0 },
+    { colombiaHour: 14, description: "2PM Colombia (domingo)", day: 0 },
+    { colombiaHour: 16, description: "4PM Colombia (domingo)", day: 0 },
+  ];
+
+  outOfHoursSchedules.forEach((scheduleConfig) => {
+    const serverTime = getServerTimeForColombiaTime(
+      scheduleConfig.colombiaHour,
+      0
+    );
+
+    // Programar para el día específico (0=domingo, 6=sábado)
+    schedule.scheduleJob(
+      `0 ${serverTime.hour} * * ${scheduleConfig.day}`,
+      async () => {
+        await executeOutOfHoursJob(
+          `ESCENARIO 2: Job de mensajes fuera de horario (${scheduleConfig.description} = ${serverTime.hour}:00 Servidor)`
+        );
+      }
+    );
+
+    console.log(
+      `🌙 ESCENARIO 2 programado: ${scheduleConfig.description} = ${serverTime.hour}:00 servidor`
+    );
   });
 };
 
@@ -156,7 +184,7 @@ console.log(
   }:${job2Time.minute.toString().padStart(2, "0")} servidor)`
 );
 console.log(
-  "🌙 ESCENARIO 2: Mensajes fuera de horario - cada 2 horas de 8AM a 6PM hora Colombia"
+  "🌙 ESCENARIO 2: Mensajes fuera de horario - sábados 1PM-6PM y domingos 8AM-6PM"
 );
 console.log("⏰ Horario laboral: Lun-Vie 8AM-6PM, Sáb 8AM-1PM, Dom cerrado");
 console.log("❌ Excluye conversaciones con chat_status = 'closed'");
